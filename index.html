@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英文單字複習庫 (含搜尋功能)</title>
+
+    <!-- iOS App 支援 (PWA) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="英文單字庫">
+
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --pos-badge-bg: #e0e7ff;
+            --pos-badge-text: #3730a3;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: #1f2937;
+            margin: 0;
+            padding: 15px;
+            line-height: 1.5;
+        }
+
+        .container { max-width: 800px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        header h1 { color: var(--primary-color); margin-bottom: 5px; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 18px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .row-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, textarea {
+            padding: 10px 12px;
+            font-size: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        .input-word-box { flex: 2; }
+        .input-pos-box { flex: 1; min-width: 90px; }
+
+        /* 搜尋框樣式 */
+        .search-box {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 15px;
+            border: 2px solid var(--primary-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background-color: #6b7280; }
+        .btn-danger { background-color: #ef4444; }
+        .btn-sm { padding: 5px 10px; font-size: 13px; }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .word-card {
+            border-left: 5px solid var(--primary-color);
+            position: relative;
+        }
+
+        .word-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .word-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .pos-tag {
+            display: inline-block;
+            background-color: var(--pos-badge-bg);
+            color: var(--pos-badge-text);
+            font-size: 12px;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .word-translation {
+            font-size: 16px;
+            color: #059669;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .word-sentence {
+            font-size: 14px;
+            color: #4b5563;
+            background: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px dashed var(--border-color);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📖 英文單字複習庫</h1>
+        <p>自訂單字、詞性、中文與例句 · 支援即時搜尋</p>
+    </header>
+
+    <!-- 🔍 關鍵字搜尋框 -->
+    <div class="card" style="padding: 12px 18px;">
+        <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋英文單字、詞性、中文解釋或例句..." oninput="renderList()">
+    </div>
+
+    <!-- 1. 新增單字區塊 -->
+    <div class="card">
+        <h3>➕ 新增單字</h3>
+        <div class="input-group">
+            <div class="row-inputs">
+                <input type="text" id="input-word" class="input-word-box" placeholder="單字 (例如：apple)">
+                <input type="text" id="input-pos" class="input-pos-box" placeholder="詞性 (例如：n.)">
+            </div>
+            <input type="text" id="input-translation" placeholder="中文解釋 (例如：蘋果)">
+            <textarea id="input-sentence" rows="2" placeholder="例句 (例如：An apple a day keeps the doctor away.)"></textarea>
+            <button class="btn" onclick="addWord()">儲存單字</button>
+        </div>
+    </div>
+
+    <!-- 2. 控制工具列 -->
+    <div class="toolbar card" style="padding: 12px 18px;">
+        <div>
+            <b>目前顯示：</b><span id="word-count">0</span> 字
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="toggleTranslation()">👁️ 隱藏/顯示中文</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportData()">📤 匯出備份</button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">📥 匯入檔案</button>
+            <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+        </div>
+    </div>
+
+    <!-- 3. 單字清單顯示區 -->
+    <div id="word-list"></div>
+</div>
+
+<script>
+    // 預設示範單字
+    const defaultWords = [
+        {
+            id: Date.now(),
+            word: "perseverance",
+            pos: "n.",
+            translation: "毅力、堅持不懈",
+            sentence: "Through hard work and perseverance, she reached her goal."
+        }
+    ];
+
+    let words = JSON.parse(localStorage.getItem('my_english_words_v2')) || defaultWords;
+    let isTranslationHidden = false;
+
+    function saveToStorage() {
+        localStorage.setItem('my_english_words_v2', JSON.stringify(words));
+        renderList();
+    }
+
+    function addWord() {
+        const wordInput = document.getElementById('input-word');
+        const posInput = document.getElementById('input-pos');
+        const translationInput = document.getElementById('input-translation');
+        const sentenceInput = document.getElementById('input-sentence');
+
+        const word = wordInput.value.trim();
+        const pos = posInput.value.trim();
+        const translation = translationInput.value.trim();
+        const sentence = sentenceInput.value.trim();
+
+        if (!word || !translation) {
+            alert("請輸入英文單字與中文解釋！");
+            return;
+        }
+
+        words.unshift({
+            id: Date.now(),
+            word,
+            pos,
+            translation,
+            sentence
+        });
+
+        saveToStorage();
+
+        // 清空輸入框
+        wordInput.value = '';
+        posInput.value = '';
+        translationInput.value = '';
+        sentenceInput.value = '';
+    }
+
+    function deleteWord(id) {
+        if (confirm("確定要刪除這個單字嗎？")) {
+            words = words.filter(item => item.id !== id);
+            saveToStorage();
+        }
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.speak(utterance);
+        } else {
+            alert("你的瀏覽器不支援發音功能。");
+        }
+    }
+
+    function toggleTranslation() {
+        isTranslationHidden = !isTranslationHidden;
+        renderList();
+    }
+
+    function renderList() {
+        const wordListEl = document.getElementById('word-list');
+        const countEl = document.getElementById('word-count');
+        const keyword = document.getElementById('search-input').value.toLowerCase().trim();
+        
+        // 關鍵字過濾（可搜尋單字、詞性、中文或例句）
+        const filteredWords = words.filter(item => {
+            return (
+                (item.word && item.word.toLowerCase().includes(keyword)) ||
+                (item.pos && item.pos.toLowerCase().includes(keyword)) ||
+                (item.translation && item.translation.toLowerCase().includes(keyword)) ||
+                (item.sentence && item.sentence.toLowerCase().includes(keyword))
+            );
+        });
+
+        countEl.innerText = filteredWords.length;
+        wordListEl.innerHTML = '';
+
+        if (filteredWords.length === 0) {
+            wordListEl.innerHTML = `<p style="text-align:center; color:#9ca3af;">${keyword ? '找不到符合關鍵字的單字' : '目前還沒有單字，快在上方新增吧！'}</p>`;
+            return;
+        }
+
+        filteredWords.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card word-card';
+
+            const translationClass = isTranslationHidden ? 'word-translation hidden' : 'word-translation';
+            const posBadge = item.pos ? `<span class="pos-tag">${item.pos}</span>` : '';
+
+            card.innerHTML = `
+                <div class="word-header">
+                    <div class="word-title">
+                        ${item.word}
+                        ${posBadge}
+                        <button class="btn btn-secondary btn-sm" style="padding:2px 6px; margin-left:6px;" onclick="speak('${item.word.replace(/'/g, "\\'")}')">🔊</button>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="deleteWord(${item.id})">刪除</button>
+                </div>
+                <div class="${translationClass}">💡 ${item.translation}</div>
+                ${item.sentence ? `<div class="word-sentence">📝 例句：${item.sentence}</div>` : ''}
+            `;
+
+            wordListEl.appendChild(card);
+        });
+    }
+
+    // 📤 匯出備份檔案
+    function exportData() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(words));
+        const anchor = document.createElement('a');
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", `english_words_backup.json`);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+    }
+
+    // 📥 匯入備份檔案
+    function importData(event) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported) && confirm("匯入將會覆蓋目前的單字庫，確定要繼續嗎？")) {
+                    words = imported;
+                    saveToStorage();
+                    alert("🎉 單字庫匯入成功！");
+                }
+            } catch (err) {
+                alert("檔案格式錯誤，請選擇正確的單字備份檔。");
+            }
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+
+    // 初始載入
+    renderList();
+</script>
+
+</body>
+</html>
