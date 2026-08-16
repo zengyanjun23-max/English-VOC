@@ -119,6 +119,15 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
+        .tag-badge {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+        }
+        .tag-pos { color: #4f46e5; background: #e0e7ff; }
+        .tag-level { color: #d97706; background: #fef3c7; }
+
         .pagination {
             display: flex;
             justify-content: space-between;
@@ -150,13 +159,14 @@
     <div class="card">
         <h2 class="card-title">🔤 英文單字庫</h2>
         <div class="hint-text">
-            💡 每頁固定顯示 10 個單字，支援關鍵字搜尋與選頁跳轉。
+            💡 每頁固定顯示 10 個單字，支援自訂詞性與分級。
         </div>
 
-        <!-- 新增單字區塊 -->
+        <!-- 新增單字區塊 (詞性與分級分開) -->
         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="eng-word" placeholder="英文單字 (例：apple)" style="flex: 2;">
-            <input type="text" id="eng-pos" placeholder="詞性 / 自訂標籤 (例：n. / 初級)" style="flex: 1;">
+            <input type="text" id="eng-pos" placeholder="詞性 (例：n.)" style="flex: 1;">
+            <input type="text" id="eng-level" placeholder="自訂分級 (例：初級)" style="flex: 1;">
         </div>
 
         <input type="text" id="eng-trans" placeholder="中文解釋 (例：蘋果)" style="margin-bottom: 10px;">
@@ -166,7 +176,7 @@
 
         <!-- 搜尋單字區塊 -->
         <div style="margin-top: 10px; margin-bottom: 15px;">
-            <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋單字或中文..." oninput="onSearchChange()">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋單字、中文、詞性或分級..." oninput="onSearchChange()">
         </div>
 
         <!-- 單字列表 -->
@@ -189,8 +199,8 @@
 
 <script>
     const defaultWords = [
-        { id: 1, word: "apple", pos: "n.", trans: "蘋果", sentence: "An apple a day keeps the doctor away." },
-        { id: 2, word: "perseverance", pos: "n.", trans: "毅力、堅持不懈", sentence: "Through hard work and perseverance, she reached her goal." }
+        { id: 1, word: "apple", pos: "n.", level: "初級", trans: "蘋果", sentence: "An apple a day keeps the doctor away." },
+        { id: 2, word: "perseverance", pos: "n.", level: "高級", trans: "毅力、堅持不懈", sentence: "Through hard work and perseverance, she reached her goal." }
     ];
 
     let wordList = JSON.parse(localStorage.getItem('english_words_db')) || defaultWords;
@@ -204,6 +214,7 @@
     function addEngWord() {
         const word = document.getElementById('eng-word').value.trim();
         const pos = document.getElementById('eng-pos').value.trim();
+        const level = document.getElementById('eng-level').value.trim();
         const trans = document.getElementById('eng-trans').value.trim();
         const sentence = document.getElementById('eng-sentence').value.trim();
 
@@ -221,11 +232,12 @@
             return;
         }
 
-        wordList.unshift({ id: Date.now(), word, pos, trans, sentence });
+        wordList.unshift({ id: Date.now(), word, pos, level, trans, sentence });
         saveDB();
 
         document.getElementById('eng-word').value = '';
         document.getElementById('eng-pos').value = '';
+        document.getElementById('eng-level').value = '';
         document.getElementById('eng-trans').value = '';
         document.getElementById('eng-sentence').value = '';
         
@@ -272,7 +284,8 @@
         const filteredList = wordList.filter(item => 
             item.word.toLowerCase().includes(keyword) || 
             item.trans.toLowerCase().includes(keyword) ||
-            (item.pos && item.pos.toLowerCase().includes(keyword))
+            (item.pos && item.pos.toLowerCase().includes(keyword)) ||
+            (item.level && item.level.toLowerCase().includes(keyword))
         );
 
         const totalItems = filteredList.length;
@@ -294,7 +307,8 @@
                     <div style="display:flex; justify-content:space-between; align-items:center;">
                         <strong style="font-size:18px;">
                             ${item.word} 
-                            ${item.pos ? `<span style="font-size:12px; color:#4f46e5; background:#e0e7ff; padding:2px 6px; border-radius:10px;">${item.pos}</span>` : ''}
+                            ${item.pos ? `<span class="tag-badge tag-pos">${item.pos}</span>` : ''}
+                            ${item.level ? `<span class="tag-badge tag-level">${item.level}</span>` : ''}
                         </strong>
                         <div>
                             <button class="btn btn-gray" style="padding:4px 8px; font-size:12px;" onclick="speakWord('${item.word}')">🔊 發音</button>
