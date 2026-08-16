@@ -99,6 +99,12 @@
         .btn-gray { background-color: var(--btn-gray); }
         .btn-gray:hover { background-color: var(--btn-gray-hover); }
 
+        .search-box {
+            background-color: #f1f5f9;
+            border-color: #94a3b8;
+            font-weight: bold;
+        }
+
         .word-card {
             background: white;
             border-left: 4px solid var(--primary);
@@ -115,9 +121,10 @@
     <div class="card">
         <h2 class="card-title">🔤 英文單字庫</h2>
         <div class="hint-text">
-            💡 系統已設定「防重複機制」，若輸入已存在的單字（不限大小寫）會跳出提示。
+            💡 系統具備防重複機制，並提供關鍵字即時搜尋功能。
         </div>
 
+        <!-- 新增單字區塊 -->
         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="eng-word" placeholder="英文單字 (例：perseverance)" style="flex: 2;">
             <input type="text" id="eng-pos" placeholder="詞性 (例：n.)" style="flex: 1;">
@@ -126,9 +133,15 @@
         <input type="text" id="eng-trans" placeholder="中文解釋 (例：毅力、堅持不懈)" style="margin-bottom: 10px;">
         <textarea id="eng-sentence" placeholder="例句或補充說明..." style="margin-bottom: 10px;"></textarea>
         
-        <button class="btn btn-green" style="width: 100%; justify-content: center;" onclick="addEngWord()">➕ 新增單字</button>
+        <button class="btn btn-green" style="width: 100%; justify-content: center; margin-bottom: 20px;" onclick="addEngWord()">➕ 新增單字</button>
 
-        <div style="margin-top: 20px;" id="eng-list"></div>
+        <!-- 搜尋單字區塊 -->
+        <div style="margin-top: 10px; margin-bottom: 15px;">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋單字或中文解釋..." oninput="renderList()">
+        </div>
+
+        <!-- 單字列表 -->
+        <div id="eng-list"></div>
     </div>
 </div>
 
@@ -192,9 +205,21 @@
 
     function renderList() {
         const container = document.getElementById('eng-list');
+        const keyword = document.getElementById('search-input').value.trim().toLowerCase();
         container.innerHTML = '';
 
-        wordList.forEach(item => {
+        // 依關鍵字篩選英文或中文
+        const filteredList = wordList.filter(item => 
+            item.word.toLowerCase().includes(keyword) || 
+            item.trans.toLowerCase().includes(keyword)
+        );
+
+        if (filteredList.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">查無符合條件的單字</div>';
+            return;
+        }
+
+        filteredList.forEach(item => {
             const div = document.createElement('div');
             div.className = 'word-card';
             div.innerHTML = `
