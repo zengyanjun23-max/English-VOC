@@ -92,6 +92,11 @@
             transition: background-color 0.2s;
         }
 
+        .btn:disabled {
+            background-color: #cbd5e1 !important;
+            cursor: not-allowed;
+        }
+
         .btn-green { background-color: var(--btn-green); }
         .btn-green:hover { background-color: var(--btn-green-hover); }
         .btn-red { background-color: var(--btn-red); }
@@ -113,6 +118,20 @@
             margin-bottom: 10px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .page-info {
+            font-weight: bold;
+            color: #475569;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -121,7 +140,7 @@
     <div class="card">
         <h2 class="card-title">🔤 英文單字庫</h2>
         <div class="hint-text">
-            💡 系統具備防重複機制，並提供關鍵字即時搜尋功能。
+            💡 系統具備防重複機制，每頁固定顯示 10 個單字。
         </div>
 
         <!-- 新增單字區塊 -->
@@ -137,11 +156,18 @@
 
         <!-- 搜尋單字區塊 -->
         <div style="margin-top: 10px; margin-bottom: 15px;">
-            <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋單字或中文解釋..." oninput="renderList()">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 搜尋單字或中文解釋..." oninput="onSearchChange()">
         </div>
 
         <!-- 單字列表 -->
         <div id="eng-list"></div>
+
+        <!-- 分頁按鈕區塊 -->
+        <div class="pagination" id="pagination-controls">
+            <button class="btn btn-gray" id="btn-prev" onclick="changePage(-1)">◀ 上一頁</button>
+            <span class="page-info" id="page-info">第 1 / 1 頁</span>
+            <button class="btn btn-gray" id="btn-next" onclick="changePage(1)">下一頁 ▶</button>
+        </div>
     </div>
 </div>
 
@@ -151,6 +177,8 @@
     ];
 
     let wordList = JSON.parse(localStorage.getItem('english_words_db')) || defaultWords;
+    let currentPage = 1;
+    const pageSize = 10; // 每頁顯示 10 個單字
 
     function saveDB() {
         localStorage.setItem('english_words_db', JSON.stringify(wordList));
@@ -184,6 +212,8 @@
         document.getElementById('eng-pos').value = '';
         document.getElementById('eng-trans').value = '';
         document.getElementById('eng-sentence').value = '';
+        
+        currentPage = 1; // 新增後跳回第一頁
         renderList();
     }
 
@@ -203,38 +233,62 @@
         }
     }
 
+    function onSearchChange() {
+        currentPage = 1; // 搜尋時重設至第一頁
+        renderList();
+    }
+
+    function changePage(direction) {
+        currentPage += direction;
+        renderList();
+    }
+
     function renderList() {
         const container = document.getElementById('eng-list');
         const keyword = document.getElementById('search-input').value.trim().toLowerCase();
         container.innerHTML = '';
 
-        // 依關鍵字篩選英文或中文
+        // 依關鍵字篩選
         const filteredList = wordList.filter(item => 
             item.word.toLowerCase().includes(keyword) || 
             item.trans.toLowerCase().includes(keyword)
         );
 
-        if (filteredList.length === 0) {
+        const totalItems = filteredList.length;
+        const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        // 計算目前頁面要切出來的 10 個單字
+        const startIndex = (currentPage - 1) * pageSize;
+        const pageItems = filteredList.slice(startIndex, startIndex + pageSize);
+
+        if (pageItems.length === 0) {
             container.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">查無符合條件的單字</div>';
-            return;
+        } else {
+            pageItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'word-card';
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:18px;">${item.word} ${item.pos ? `<span style="font-size:12px; color:#4f46e5; background:#e0e7ff; padding:2px 6px; border-radius:10px;">${item.pos}</span>` : ''}</strong>
+                        <div>
+                            <button class="btn btn-gray" style="padding:4px 8px; font-size:12px;" onclick="speakWord('${item.word}')">🔊 發音</button>
+                            <button class="btn btn-red" style="padding:4px 8px; font-size:12px;" onclick="deleteEngWord(${item.id})">刪除</button>
+                        </div>
+                    </div>
+                    <div style="color:#059669; font-weight:bold; margin: 6px 0;">💡 ${item.trans}</div>
+                    ${item.sentence ? `<div style="color:#64748b; font-size:13px; background:#f1f5f9; padding:6px; border-radius:4px;">📝 ${item.sentence}</div>` : ''}
+                `;
+                container.appendChild(div);
+            });
         }
 
-        filteredList.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'word-card';
-            div.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:18px;">${item.word} ${item.pos ? `<span style="font-size:12px; color:#4f46e5; background:#e0e7ff; padding:2px 6px; border-radius:10px;">${item.pos}</span>` : ''}</strong>
-                    <div>
-                        <button class="btn btn-gray" style="padding:4px 8px; font-size:12px;" onclick="speakWord('${item.word}')">🔊 發音</button>
-                        <button class="btn btn-red" style="padding:4px 8px; font-size:12px;" onclick="deleteEngWord(${item.id})">刪除</button>
-                    </div>
-                </div>
-                <div style="color:#059669; font-weight:bold; margin: 6px 0;">💡 ${item.trans}</div>
-                ${item.sentence ? `<div style="color:#64748b; font-size:13px; background:#f1f5f9; padding:6px; border-radius:4px;">📝 ${item.sentence}</div>` : ''}
-            `;
-            container.appendChild(div);
-        });
+        // 更新分頁狀態與按鈕
+        document.getElementById('page-info').innerText = `第 ${currentPage} / ${totalPages} 頁 (共 ${totalItems} 個單字)`;
+        document.getElementById('btn-prev').disabled = currentPage === 1;
+        document.getElementById('btn-next').disabled = currentPage === totalPages || totalPages === 0;
     }
 
     renderList();
