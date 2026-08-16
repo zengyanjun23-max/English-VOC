@@ -10,6 +10,8 @@
             --primary-hover: #4338ca;
             --btn-green: #10b981;
             --btn-green-hover: #059669;
+            --btn-blue: #3b82f6;
+            --btn-blue-hover: #2563eb;
             --btn-red: #ef4444;
             --btn-red-hover: #dc2626;
             --btn-gray: #64748b;
@@ -99,6 +101,8 @@
 
         .btn-green { background-color: var(--btn-green); }
         .btn-green:hover { background-color: var(--btn-green-hover); }
+        .btn-blue { background-color: var(--btn-blue); }
+        .btn-blue:hover { background-color: var(--btn-blue-hover); }
         .btn-red { background-color: var(--btn-red); }
         .btn-red:hover { background-color: var(--btn-red-hover); }
         .btn-gray { background-color: var(--btn-gray); }
@@ -159,20 +163,24 @@
     <div class="card">
         <h2 class="card-title">🔤 英文單字庫</h2>
         <div class="hint-text">
-            💡 每頁顯示 10 字，右側可直接選取目前單字庫包含的分類切換檢視。
+            💡 每頁顯示 10 字，點擊單字右側的「✏️ 編輯」按鈕可輕鬆更改分類或內容。
         </div>
 
-        <!-- 新增單字區塊 -->
+        <!-- 新增 / 編輯單字區塊 -->
+        <input type="hidden" id="edit-id" value="">
         <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="eng-word" placeholder="英文單字 (例：apple)" style="flex: 2;">
             <input type="text" id="eng-pos" placeholder="詞性 (例：n.)" style="flex: 1;">
-            <input type="text" id="eng-level" placeholder="自訂分類 (例：初級)" style="flex: 1;">
+            <input type="text" id="eng-level" placeholder="自訂分類 (例：分類1)" style="flex: 1;">
         </div>
 
         <input type="text" id="eng-trans" placeholder="中文解釋 (例：蘋果)" style="margin-bottom: 10px;">
         <textarea id="eng-sentence" placeholder="例句或補充說明..." style="margin-bottom: 10px;"></textarea>
         
-        <button class="btn btn-green" style="width: 100%; justify-content: center; margin-bottom: 20px;" onclick="addEngWord()">➕ 新增單字</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn btn-green" id="btn-submit" style="flex: 1; justify-content: center;" onclick="saveEngWord()">➕ 新增單字</button>
+            <button class="btn btn-gray" id="btn-cancel-edit" style="display: none;" onclick="cancelEdit()">取消編輯</button>
+        </div>
 
         <!-- 搜尋與分類選單區塊 -->
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -202,8 +210,8 @@
 
 <script>
     const defaultWords = [
-        { id: 1, word: "apple", pos: "n.", level: "初級", trans: "蘋果", sentence: "An apple a day keeps the doctor away." },
-        { id: 2, word: "perseverance", pos: "n.", level: "高級", trans: "毅力、堅持不懈", sentence: "Through hard work and perseverance, she reached her goal." }
+        { id: 1, word: "apple", pos: "n.", level: "分類1", trans: "蘋果", sentence: "An apple a day keeps the doctor away." },
+        { id: 2, word: "perseverance", pos: "n.", level: "分類2", trans: "毅力、堅持不懈", sentence: "Through hard work and perseverance, she reached her goal." }
     ];
 
     let wordList = JSON.parse(localStorage.getItem('english_words_db')) || defaultWords;
@@ -218,7 +226,6 @@
         const dropdown = document.getElementById('filter-level');
         const selectedVal = dropdown.value;
         
-        // 收集所有出現過的分類（去重複並移除空白）
         const categories = [...new Set(wordList.map(item => item.level ? item.level.trim() : '').filter(Boolean))];
 
         dropdown.innerHTML = '<option value="ALL">全部分類</option>';
@@ -231,7 +238,8 @@
         });
     }
 
-    function addEngWord() {
+    function saveEngWord() {
+        const editId = document.getElementById('edit-id').value;
         const word = document.getElementById('eng-word').value.trim();
         const pos = document.getElementById('eng-pos').value.trim();
         const level = document.getElementById('eng-level').value.trim();
@@ -243,27 +251,68 @@
             return;
         }
 
-        const isDuplicate = wordList.some(
-            item => item.word.toLowerCase() === word.toLowerCase()
-        );
+        if (editId) {
+            // 編輯模式：更新現有單字
+            const index = wordList.findIndex(item => item.id == editId);
+            if (index !== -1) {
+                wordList[index] = { id: Number(editId), word, pos, level, trans, sentence };
+            }
+            cancelEdit();
+        } else {
+            // 新增模式：檢查重複
+            const isDuplicate = wordList.some(
+                item => item.word.toLowerCase() === word.toLowerCase()
+            );
 
-        if (isDuplicate) {
-            alert(`⚠️ 單字 "${word}" 已經存在於單字庫中了！`);
-            return;
+            if (isDuplicate) {
+                alert(`⚠️ 單字 "${word}" 已經存在於單字庫中了！`);
+                return;
+            }
+
+            wordList.unshift({ id: Date.now(), word, pos, level, trans, sentence });
+            clearForm();
+            currentPage = 1;
         }
 
-        wordList.unshift({ id: Date.now(), word, pos, level, trans, sentence });
         saveDB();
+        updateCategoryDropdown();
+        renderList();
+    }
 
+    function editEngWord(id) {
+        const item = wordList.find(w => w.id === id);
+        if (!item) return;
+
+        document.getElementById('edit-id').value = item.id;
+        document.getElementById('eng-word').value = item.word;
+        document.getElementById('eng-pos').value = item.pos || '';
+        document.getElementById('eng-level').value = item.level || '';
+        document.getElementById('eng-trans').value = item.trans;
+        document.getElementById('eng-sentence').value = item.sentence || '';
+
+        const submitBtn = document.getElementById('btn-submit');
+        submitBtn.innerText = '💾 儲存修改';
+        submitBtn.className = 'btn btn-blue';
+        document.getElementById('btn-cancel-edit').style.display = 'inline-flex';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        clearForm();
+        const submitBtn = document.getElementById('btn-submit');
+        submitBtn.innerText = '➕ 新增單字';
+        submitBtn.className = 'btn btn-green';
+        document.getElementById('btn-cancel-edit').style.display = 'none';
+    }
+
+    function clearForm() {
+        document.getElementById('edit-id').value = '';
         document.getElementById('eng-word').value = '';
         document.getElementById('eng-pos').value = '';
         document.getElementById('eng-level').value = '';
         document.getElementById('eng-trans').value = '';
         document.getElementById('eng-sentence').value = '';
-        
-        currentPage = 1;
-        updateCategoryDropdown();
-        renderList();
     }
 
     function deleteEngWord(id) {
@@ -336,8 +385,9 @@
                             ${item.pos ? `<span class="tag-badge tag-pos">${item.pos}</span>` : ''}
                             ${item.level ? `<span class="tag-badge tag-level">${item.level}</span>` : ''}
                         </strong>
-                        <div>
+                        <div style="display:flex; gap:4px;">
                             <button class="btn btn-gray" style="padding:4px 8px; font-size:12px;" onclick="speakWord('${item.word}')">🔊 發音</button>
+                            <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="editEngWord(${item.id})">✏️ 編輯</button>
                             <button class="btn btn-red" style="padding:4px 8px; font-size:12px;" onclick="deleteEngWord(${item.id})">刪除</button>
                         </div>
                     </div>
@@ -348,7 +398,6 @@
             });
         }
 
-        // 更新頁碼選單
         const selectEl = document.getElementById('page-select');
         selectEl.innerHTML = '';
         for (let i = 1; i <= totalPages; i++) {
@@ -364,7 +413,6 @@
         document.getElementById('btn-next').disabled = currentPage === totalPages || totalPages === 0;
     }
 
-    // 初始化下拉選單與列表
     updateCategoryDropdown();
     renderList();
 </script>
