@@ -57,7 +57,7 @@
             margin-bottom: 15px;
         }
 
-        input[type="text"], textarea {
+        input[type="text"], textarea, select {
             width: 100%;
             padding: 12px;
             border: 1px solid var(--border);
@@ -67,7 +67,7 @@
             outline: none;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        input[type="text"]:focus, textarea:focus, select:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
         }
@@ -125,11 +125,21 @@
             align-items: center;
             margin-top: 20px;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
-        .page-info {
+        .page-select-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             font-weight: bold;
             color: #475569;
+            font-size: 14px;
+        }
+
+        .page-select-container select {
+            width: auto;
+            padding: 6px 10px;
             font-size: 14px;
         }
     </style>
@@ -140,7 +150,7 @@
     <div class="card">
         <h2 class="card-title">🔤 英文單字庫</h2>
         <div class="hint-text">
-            💡 系統具備防重複機制，每頁固定顯示 10 個單字。
+            💡 每頁固定顯示 10 個單字，支援選頁跳轉與關鍵字搜尋。
         </div>
 
         <!-- 新增單字區塊 -->
@@ -162,10 +172,16 @@
         <!-- 單字列表 -->
         <div id="eng-list"></div>
 
-        <!-- 分頁按鈕區塊 -->
+        <!-- 分頁控制區塊 (含下拉選頁) -->
         <div class="pagination" id="pagination-controls">
             <button class="btn btn-gray" id="btn-prev" onclick="changePage(-1)">◀ 上一頁</button>
-            <span class="page-info" id="page-info">第 1 / 1 頁</span>
+            
+            <div class="page-select-container">
+                <span>跳至第</span>
+                <select id="page-select" onchange="jumpToPage(this.value)"></select>
+                <span id="page-total">/ 1 頁</span>
+            </div>
+
             <button class="btn btn-gray" id="btn-next" onclick="changePage(1)">下一頁 ▶</button>
         </div>
     </div>
@@ -178,7 +194,7 @@
 
     let wordList = JSON.parse(localStorage.getItem('english_words_db')) || defaultWords;
     let currentPage = 1;
-    const pageSize = 10; // 每頁顯示 10 個單字
+    const pageSize = 10;
 
     function saveDB() {
         localStorage.setItem('english_words_db', JSON.stringify(wordList));
@@ -195,13 +211,12 @@
             return;
         }
 
-        // 防重複檢查 (忽略大小寫)
         const isDuplicate = wordList.some(
             item => item.word.toLowerCase() === word.toLowerCase()
         );
 
         if (isDuplicate) {
-            alert(`⚠️ 單字 "${word}" 已經存在於單字庫中了，請勿重複新增！`);
+            alert(`⚠️ 單字 "${word}" 已經存在於單字庫中了！`);
             return;
         }
 
@@ -213,7 +228,7 @@
         document.getElementById('eng-trans').value = '';
         document.getElementById('eng-sentence').value = '';
         
-        currentPage = 1; // 新增後跳回第一頁
+        currentPage = 1;
         renderList();
     }
 
@@ -234,7 +249,7 @@
     }
 
     function onSearchChange() {
-        currentPage = 1; // 搜尋時重設至第一頁
+        currentPage = 1;
         renderList();
     }
 
@@ -243,12 +258,16 @@
         renderList();
     }
 
+    function jumpToPage(pageNumber) {
+        currentPage = parseInt(pageNumber);
+        renderList();
+    }
+
     function renderList() {
         const container = document.getElementById('eng-list');
         const keyword = document.getElementById('search-input').value.trim().toLowerCase();
         container.innerHTML = '';
 
-        // 依關鍵字篩選
         const filteredList = wordList.filter(item => 
             item.word.toLowerCase().includes(keyword) || 
             item.trans.toLowerCase().includes(keyword)
@@ -260,7 +279,6 @@
         if (currentPage > totalPages) currentPage = totalPages;
         if (currentPage < 1) currentPage = 1;
 
-        // 計算目前頁面要切出來的 10 個單字
         const startIndex = (currentPage - 1) * pageSize;
         const pageItems = filteredList.slice(startIndex, startIndex + pageSize);
 
@@ -285,8 +303,18 @@
             });
         }
 
-        // 更新分頁狀態與按鈕
-        document.getElementById('page-info').innerText = `第 ${currentPage} / ${totalPages} 頁 (共 ${totalItems} 個單字)`;
+        // 更新下拉選頁清單與總頁數文字
+        const selectEl = document.getElementById('page-select');
+        selectEl.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.innerText = i;
+            if (i === currentPage) opt.selected = true;
+            selectEl.appendChild(opt);
+        }
+
+        document.getElementById('page-total').innerText = `/ ${totalPages} 頁 (共 ${totalItems} 字)`;
         document.getElementById('btn-prev').disabled = currentPage === 1;
         document.getElementById('btn-next').disabled = currentPage === totalPages || totalPages === 0;
     }
